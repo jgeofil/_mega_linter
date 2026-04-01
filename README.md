@@ -55,4 +55,18 @@
 - [Community Support](https://community.mega-linter.io)
 
 ---
-For more details, explore the full documentation within the repository!
+
+To make this action available for reuse:
+
+1. **Create a release tag**:
+   ```bash
+   git tag v1
+   git push origin v1
+   ```
+
+2. **Use it in any project**:
+   ```yaml
+   - uses: jgeofil/_mega-linter@v1
+     with:
+       github-token: ${{ secrets.GITHUB_TOKEN }}
+   ```
