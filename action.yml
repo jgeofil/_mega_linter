@@ -1,1 +1,67 @@
-name: MegaLinter\n\n"on":\n  push: { branches: ["main"] }\n  pull_request: { branches: ["main"] }\n\n"jobs":\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout code\n        uses: actions/checkout@v2\n      - name: Run MegaLinter\n        uses: oxsecurity/megalinter@v9\n        with:\n          apply-fixes: true\n          apply-fixes-event: pull_request\n          apply-fixes-mode: commit\n          github-token: ${{ secrets.GITHUB_TOKEN }}\n      - name: Upload Artifacts\n        uses: actions/upload-artifact@v2\n        with:\n          name: linter-report\n          path: .mega-linter.yml\n
+name: "MegaLinter"
+description: "A composite action to run MegaLinter with automatic fixes"
+
+inputs:
+  apply-fixes:
+    description: "Apply linter fixes (all, none)"
+    required: false
+    default: "all"
+  apply-fixes-event:
+    description: "Event that triggers fixes (pull_request, push, all)"
+    required: false
+    default: "pull_request"
+  apply-fixes-mode:
+    description: "How to apply fixes (commit, pull_request)"
+    required: false
+    default: "commit"
+  github-token:
+    description: "GitHub token for authentication"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Code
+      uses: actions/checkout@v6
+      with:
+        token: ${{ inputs.github-token }}
+        fetch-depth: 0
+
+    - name: MegaLinter
+      id: ml
+      uses: oxsecurity/megalinter@v9
+      env:
+        VALIDATE_ALL_CODEBASE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        APPLY_FIXES: ${{ inputs.apply-fixes }}
+        APPLY_FIXES_EVENT: ${{ inputs.apply-fixes-event }}
+        APPLY_FIXES_MODE: ${{ inputs.apply-fixes-mode }}
+
+    - name: Archive production artifacts
+      if: success() || failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: MegaLinter reports
+        include-hidden-files: "true"
+        path: |
+          megalinter-reports
+          mega-linter.log
+
+    - name: Create Pull Request with applied fixes
+      id: cpr
+      if: steps.ml.outputs.has_updated_sources == 1 && inputs.apply-fixes-mode == 'pull_request' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+      uses: peter-evans/create-pull-request@v7
+      with:
+        token: ${{ inputs.github-token }}
+        commit-message: "[MegaLinter] Apply linters automatic fixes"
+        title: "[MegaLinter] Apply linters automatic fixes"
+        labels: bot
+
+    - name: Commit and push applied linter fixes
+      if: steps.ml.outputs.has_updated_sources == 1 && inputs.apply-fixes-mode == 'commit' && github.ref != 'refs/heads/main' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+      uses: stefanzweifel/git-auto-commit-action@v7
+      with:
+        branch: ${{ github.event.pull_request.head.ref || github.head_ref || github.ref }}
+        commit_message: "[MegaLinter] Apply linters fixes"
+        commit_user_name: megalinter-bot
+        commit_user_email: 129584137+megalinter-bot@users.noreply.github.com
