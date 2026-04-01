@@ -72,9 +72,9 @@ To make this action available for reuse:
    ```
 3. **Commit fixes**
    ```yaml
-- uses: jgeofil/_mega-linter@v1
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    apply-fixes: 'true'
-    apply-fixes-mode: 'commit'
+   - uses: jgeofil/_mega-linter@v1
+     with:
+       github-token: ${{ secrets.GITHUB_TOKEN }}
+       apply-fixes: 'true'
+       apply-fixes-mode: 'commit'
     ```
